@@ -18,7 +18,7 @@
 <meta property="og:description" content="本文主要介绍使用 docker-maven-plugin 插件，直接将 spring boot 应用一键发布到 docker 容器中。笔者查阅一些相关资料，很多都是在本地打包然后将项目copy 到服务器上，笔者觉得好麻烦！然笔者从插件方式出发，也能直接发布到容器中。 Intellij IDEA安装Docker插件打开Idea，从File-&amp;gt;Settings-&amp;gt;Plugins-&amp;gt;I">
 <meta property="og:locale" content="en">
 <meta property="og:image" content="http://yoursite.com/img/20190803/docker-plugin-01.png">
-<meta property="og:updated_time" content="2019-10-14T11:45:25.887Z">
+<meta property="og:updated_time" content="2019-10-17T11:12:42.134Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Docker 中部署 Spring Boot 项目">
 <meta name="twitter:description" content="本文主要介绍使用 docker-maven-plugin 插件，直接将 spring boot 应用一键发布到 docker 容器中。笔者查阅一些相关资料，很多都是在本地打包然后将项目copy 到服务器上，笔者觉得好麻烦！然笔者从插件方式出发，也能直接发布到容器中。 Intellij IDEA安装Docker插件打开Idea，从File-&amp;gt;Settings-&amp;gt;Plugins-&amp;gt;I">
@@ -114,7 +114,7 @@
 				
 				<section class="switch-part switch-part2">
 					<div class="widget tagcloud" id="js-tagcloud">
-						<a href="/tags/docker/" style="font-size: 20px;">docker</a> <a href="/tags/java/" style="font-size: 10px;">java</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a>
+						<a href="/tags/docker/" style="font-size: 20px;">docker</a> <a href="/tags/java/" style="font-size: 10px;">java</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/mysql/" style="font-size: 10px;">mysql</a>
 					</div>
 				</section>
 				
@@ -216,6 +216,9 @@
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">FROM java:8</span><br><span class="line">VOLUME /tmp</span><br><span class="line"><span class="comment">#添加参数</span></span><br><span class="line">ARG TARGET_VEN</span><br><span class="line">ADD <span class="variable">$&#123;TARGET_VEN&#125;</span> app.jar</span><br><span class="line">RUN bash -c <span class="string">'touch /app.jar'</span></span><br><span class="line"><span class="comment"># 设置端口号</span></span><br><span class="line">EXPOSE 8082</span><br><span class="line">ENTRYPOINT [ <span class="string">"java"</span>, <span class="string">"-Djava.security.egd=file:/dev/./urandom"</span>, <span class="string">"-jar"</span>, <span class="string">"/app.jar"</span> ]</span><br></pre></td></tr></table></figure>
 
 <p>在idea的右边找到Maven Projects，找到Lifecycle，双击package打包</p>
+<p>在部署中会出现无法注册到eureka,需分配静态ip,否则eureka上面是内网ip</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ docker run -d --name hello-service --expose=8081 -p 8081:8081 -e <span class="string">"EUREKA_INSTANCE_IP-ADDRESS=192.168.11.130"</span> -e <span class="string">"SERVER_PORT=8081"</span> hello-service:1.0</span><br></pre></td></tr></table></figure>
+
 
       
     </div>

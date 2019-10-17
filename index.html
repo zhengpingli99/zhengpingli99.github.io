@@ -107,7 +107,7 @@
 				
 				<section class="switch-part switch-part2">
 					<div class="widget tagcloud" id="js-tagcloud">
-						<a href="/tags/docker/" style="font-size: 20px;">docker</a> <a href="/tags/java/" style="font-size: 10px;">java</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a>
+						<a href="/tags/docker/" style="font-size: 20px;">docker</a> <a href="/tags/java/" style="font-size: 10px;">java</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/mysql/" style="font-size: 10px;">mysql</a>
 					</div>
 				</section>
 				
@@ -279,6 +279,10 @@
     <div class="article-info article-info-index">
       
       
+	<div class="article-tag tagcloud">
+		<ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/mysql/">mysql</a></li></ul>
+	</div>
+
       
 
       
@@ -335,6 +339,9 @@
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">FROM java:8</span><br><span class="line">VOLUME /tmp</span><br><span class="line"><span class="comment">#添加参数</span></span><br><span class="line">ARG TARGET_VEN</span><br><span class="line">ADD <span class="variable">$&#123;TARGET_VEN&#125;</span> app.jar</span><br><span class="line">RUN bash -c <span class="string">'touch /app.jar'</span></span><br><span class="line"><span class="comment"># 设置端口号</span></span><br><span class="line">EXPOSE 8082</span><br><span class="line">ENTRYPOINT [ <span class="string">"java"</span>, <span class="string">"-Djava.security.egd=file:/dev/./urandom"</span>, <span class="string">"-jar"</span>, <span class="string">"/app.jar"</span> ]</span><br></pre></td></tr></table></figure>
 
 <p>在idea的右边找到Maven Projects，找到Lifecycle，双击package打包</p>
+<p>在部署中会出现无法注册到eureka,需分配静态ip,否则eureka上面是内网ip</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ docker run -d --name hello-service --expose=8081 -p 8081:8081 -e <span class="string">"EUREKA_INSTANCE_IP-ADDRESS=192.168.11.130"</span> -e <span class="string">"SERVER_PORT=8081"</span> hello-service:1.0</span><br></pre></td></tr></table></figure>
+
 
       
     </div>
