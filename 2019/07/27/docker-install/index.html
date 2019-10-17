@@ -17,7 +17,7 @@
 <meta property="og:site_name" content="ping li">
 <meta property="og:description" content="Docker 是一个开源的应用容器引擎，基于 Go 语言 并遵从Apache2.0协议开源。Docker 可以让开发者打包他们的应用以及依赖包到一个轻量级、可移植的容器中，然后发布到任何流行的 Linux 机器上，也可以实现虚拟化。容器是完全使用沙箱机制，相互之间不会有任何接口（类似 iPhone 的 app）,更重要的是容器性能开销极低。Docker 与虚拟机最大区别在于：Docker 隔离应用">
 <meta property="og:locale" content="en">
-<meta property="og:updated_time" content="2019-10-14T10:22:06.166Z">
+<meta property="og:updated_time" content="2019-10-17T10:44:53.549Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Docker 安装配置">
 <meta name="twitter:description" content="Docker 是一个开源的应用容器引擎，基于 Go 语言 并遵从Apache2.0协议开源。Docker 可以让开发者打包他们的应用以及依赖包到一个轻量级、可移植的容器中，然后发布到任何流行的 Linux 机器上，也可以实现虚拟化。容器是完全使用沙箱机制，相互之间不会有任何接口（类似 iPhone 的 app）,更重要的是容器性能开销极低。Docker 与虚拟机最大区别在于：Docker 隔离应用">
@@ -208,13 +208,13 @@
         <p>Docker 是一个开源的应用容器引擎，基于 Go 语言 并遵从Apache2.0协议开源。Docker 可以让开发者打包他们的应用以及依赖包到一个轻量级、可移植的容器中，然后发布到任何流行的 Linux 机器上，也可以实现虚拟化。容器是完全使用沙箱机制，相互之间不会有任何接口（类似 iPhone 的 app）,更重要的是容器性能开销极低。<br>Docker 与虚拟机最大区别在于：Docker 隔离应用程序，直接调用宿主主机的操作系统上的硬件资源。而虚拟机在最大程度上隔离系统。</p>
 <h2 id="Docker-安装说明"><a href="#Docker-安装说明" class="headerlink" title="Docker 安装说明"></a>Docker 安装说明</h2><p>本文 Docker 安装基于ubuntu 操作系统，使用的是阿里的镜像</p>
 <h2 id="Docker-安装步骤"><a href="#Docker-安装步骤" class="headerlink" title="Docker 安装步骤"></a>Docker 安装步骤</h2><p> 安装必要的系统工具</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1 $  sudo apt-get update</span><br><span class="line">2 $  sudo apt-get -y install apt-transport-https ca-certificates curl software-properties-common</span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$  sudo apt-get update</span><br><span class="line">$  sudo apt-get -y install apt-transport-https ca-certificates curl software-properties-common</span><br></pre></td></tr></table></figure>
 
 <p> 安装GPG证书</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">1 $  curl -fsSL http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | sudo apt-key add -</span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  curl -fsSL http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | sudo apt-key add -</span><br></pre></td></tr></table></figure>
 
 <p> 写入软件源信息</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">1 $  sudo add-apt-repository <span class="string">"deb [arch=amd64] http://mirrors.aliyun.com/docker-ce/linux/ubuntu <span class="variable">$(lsb_release -cs)</span> stable"</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  sudo add-apt-repository <span class="string">"deb [arch=amd64] http://mirrors.aliyun.com/docker-ce/linux/ubuntu <span class="variable">$(lsb_release -cs)</span> stable"</span></span><br></pre></td></tr></table></figure>
 
 <p> 更新并安装Docer-CE</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$  sudo apt-get -y update</span><br><span class="line">$  sudo apt-get -y install docker-ce</span><br></pre></td></tr></table></figure>
@@ -229,7 +229,10 @@
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  systemctl daemon-reload</span><br></pre></td></tr></table></figure>
 
 <p> 开启 docker 远程服务</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">$  vim /lib/systemd/system/docker.service</span><br><span class="line">  找到    <span class="comment">#ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock</span></span><br><span class="line">  修改为：ExecStart=/usr/bin/dockerd -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock</span><br><span class="line">```  </span><br><span class="line"> 重启 docker 服务</span><br><span class="line">``` bash</span><br><span class="line">$  service docker restart</span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$  vim /lib/systemd/system/docker.service</span><br><span class="line">  找到    <span class="comment">#ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock</span></span><br><span class="line">  修改为：ExecStart=/usr/bin/dockerd -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock</span><br></pre></td></tr></table></figure>
+
+<p> 重启 docker 服务</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  service docker restart</span><br></pre></td></tr></table></figure>
 
 <p> 查看远程服务</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  ps aux|grep dockerd</span><br></pre></td></tr></table></figure>
