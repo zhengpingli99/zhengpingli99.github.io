@@ -192,7 +192,34 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        
+        <p>  <a href="https://github.com/MyCATApache/Mycat-Server" target="_blank" rel="noopener">MyCat</a>是一个开源的分布式数据库系统，是一个实现了MySQL协议的服务器，前端用户可以把它看作是一个数据库代理（类似于Mysql Proxy），用MySQL客户端工具和命令行访问，而其后端可以用MySQL原生协议与多个MySQL服务器通信，也可以用JDBC协议与大多数主流数据库服务器通信，其核心功能是分表分库，即将一个大表水平分割为N个小表，存储在后端MySQL服务器里或者其他数据库里。<br>MyCat发展到目前的版本，已经不是一个单纯的MySQL代理了，它的后端可以支持MySQL、SQL Server、Oracle、DB2、PostgreSQL等主流数据库，也支持MongoDB这种新型NoSQL方式的存储，未来还会支持更多类型的存储。而在最终用户看来，无论是那种存储方式，在MyCat里，都是一个传统的数据库表，支持标准的SQL语句进行数据的操作，这样一来，对前端业务系统来说，可以大幅降低开发难度，提升开发速度。</p>
+<h2 id="Docker构建Mycat"><a href="#Docker构建Mycat" class="headerlink" title="Docker构建Mycat"></a>Docker构建Mycat</h2><p> 创建mycat配置文件夹</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ mkdir /home/zheng/mycat</span><br></pre></td></tr></table></figure>
+
+<p> 下载mycat安装包</p>
+<pre><code class="bash">$ wget http://dl.mycat.io/1.6.7.3/20190927161129/Mycat-server-1.6.7.3-release-20190927161129-linux.tar.gz
+$ mv Mycat-server-1.6.7.3-release-20190927161129-linux.tar.gz mycat.tar.gz</code></pre>
+<p> 解压并复制文件</p>
+<pre><code class="bash">tar -zxvf mycat.tar.gz
+cp -r mycat/conf/ /home/zheng/mycat/conf/</code></pre>
+<p> 创建Dockerfile文件</p>
+<pre><code class="bash">FROM java:8
+<span class="comment">#将mycat解压到/usr/local目录中,得到 /usr/local/mycat</span>
+ADD mycat.tar.gz /usr/<span class="built_in">local</span>/
+<span class="comment">#将mycat的配置文件的地址暴露出映射地址,启动时直接映射宿主机的文件夹</span>
+VOLUME /usr/<span class="built_in">local</span>/mycat/conf
+<span class="comment">#设置MYCAT_HOME</span>
+ENV MYCAT_HOME=/usr/<span class="built_in">local</span>/mycat
+<span class="comment">#暴露出MyCat的所需端口</span>
+EXPOSE 8066 9066
+<span class="comment">#以前台进程的方式启动MyCat服务</span>
+CMD [<span class="string">"/usr/local/mycat/bin/mycat"</span>, <span class="string">"console"</span>,<span class="string">"&amp;"</span>]</code></pre>
+<p> 构建镜像</p>
+<pre><code class="bash">docker build -t mycat-1.6.7.3 .</code></pre>
+<p> 启动容器</p>
+<pre><code class="bash">docker run --name mycat -p 8066:8066 -p 9066:9066 -v /home/zheng/mycat/conf/:/usr/<span class="built_in">local</span>/mycat/conf/ -d mycat-1.6.7.3</code></pre>
+<h2 id="Mycat-配置信息"><a href="#Mycat-配置信息" class="headerlink" title="Mycat 配置信息"></a>Mycat 配置信息</h2><p>Mycat 配置信息主要涉及到 /home/zheng/mycat/conf/ 目录下：server.xml、schema.xml、rule.xml 等文件</p>
+<h3 id="server-xml配置"><a href="#server-xml配置" class="headerlink" title="server.xml配置"></a>server.xml配置</h3><h3 id="schema-xml-配置"><a href="#schema-xml-配置" class="headerlink" title="schema.xml 配置"></a>schema.xml 配置</h3>
       
     </div>
     
