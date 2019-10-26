@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="ping li">
 <meta property="og:description" content="MyCat是一个开源的分布式数据库系统，是一个实现了MySQL协议的服务器，前端用户可以把它看作是一个数据库代理（类似于Mysql Proxy），用MySQL客户端工具和命令行访问，而其后端可以用MySQL原生协议与多个MySQL服务器通信，也可以用JDBC协议与大多数主流数据库服务器通信，其核心功能是分表分库，即将一个大表水平分割为N个小表，存储在后端MySQL服务器里或者其他数据库里。My">
 <meta property="og:locale" content="en">
-<meta property="og:updated_time" content="2019-10-26T08:42:10.369Z">
+<meta property="og:updated_time" content="2019-10-26T08:48:17.352Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="MyCat 分库分表">
 <meta name="twitter:description" content="MyCat是一个开源的分布式数据库系统，是一个实现了MySQL协议的服务器，前端用户可以把它看作是一个数据库代理（类似于Mysql Proxy），用MySQL客户端工具和命令行访问，而其后端可以用MySQL原生协议与多个MySQL服务器通信，也可以用JDBC协议与大多数主流数据库服务器通信，其核心功能是分表分库，即将一个大表水平分割为N个小表，存储在后端MySQL服务器里或者其他数据库里。My">
@@ -274,7 +274,7 @@ CMD [<span class="string">"/usr/local/mycat/bin/mycat"</span>, <span class="stri
      &lt;!-- &lt;readHost host=<span class="string">"hostM2"</span> url=<span class="string">"192.168.11.128:3306"</span> user=<span class="string">"zheng"</span> password=<span class="string">"123456"</span>&gt;     --&gt;     
     &lt;/writeHost&gt;
 &lt;/dataHost&gt;</code></pre>
-<h3 id="rule-xml-文件配置"><a href="#rule-xml-文件配置" class="headerlink" title="rule.xml 文件配置"></a>rule.xml 文件配置</h3><p>  rule是表切分规则文件</p>
+<h3 id="其他文件配置"><a href="#其他文件配置" class="headerlink" title="其他文件配置"></a>其他文件配置</h3><p>  rule.xml是表切分规则文件<br>  sequence_db_conf 数据库生成id策略<br>  sequence_conf MyCat 生成id策略</p>
 
       
     </div>
