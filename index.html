@@ -219,7 +219,55 @@ CMD [<span class="string">"/usr/local/mycat/bin/mycat"</span>, <span class="stri
 <p> 启动容器</p>
 <pre><code class="bash">docker run --name mycat -p 8066:8066 -p 9066:9066 -v /home/zheng/mycat/conf/:/usr/<span class="built_in">local</span>/mycat/conf/ -d mycat-1.6.7.3</code></pre>
 <h2 id="Mycat-配置信息"><a href="#Mycat-配置信息" class="headerlink" title="Mycat 配置信息"></a>Mycat 配置信息</h2><p>Mycat 配置信息主要涉及到 /home/zheng/mycat/conf/ 目录下：server.xml、schema.xml、rule.xml 等文件</p>
-<h3 id="server-xml配置"><a href="#server-xml配置" class="headerlink" title="server.xml配置"></a>server.xml配置</h3><h3 id="schema-xml-配置"><a href="#schema-xml-配置" class="headerlink" title="schema.xml 配置"></a>schema.xml 配置</h3>
+<h3 id="server-xml-文件配置"><a href="#server-xml-文件配置" class="headerlink" title="server.xml 文件配置"></a>server.xml 文件配置</h3><pre><code class="bash">&lt;!-- 登录用户--&gt;
+&lt;user name=<span class="string">"root"</span> defaultAccount=<span class="string">"true"</span>&gt;
+    &lt;!-- 登录密码--&gt;
+    &lt;property name=<span class="string">"password"</span>&gt;123456&lt;/property&gt;
+    &lt;!-- 设置访问数据库，多个用逗号隔开--&gt;
+    &lt;property name=<span class="string">"schemas"</span>&gt;vip_user&lt;/property&gt;
+    &lt;!-- 表级 DML 权限设置 --&gt;
+    &lt;!--         
+    &lt;privileges check=<span class="string">"false"</span>&gt;
+        &lt;!-- 设置数据库 DML 权限 --&gt;
+        &lt;schema name=<span class="string">"vip_user"</span> dml=<span class="string">"0110"</span> &gt;
+            &lt;!-- 设置表的 DML 权限 --&gt;
+            &lt;table name=<span class="string">"{表名}"</span> dml=<span class="string">"0000"</span>&gt;&lt;/table&gt;
+        &lt;/schema&gt;
+    &lt;/privileges&gt;        
+     --&gt;
+&lt;/user&gt;
+&lt;!-- 登录用户--&gt;
+&lt;user name=<span class="string">"user"</span>&gt;
+    &lt;!-- 登录密码--&gt;
+    &lt;property name=<span class="string">"password"</span>&gt;user&lt;/property&gt;
+     &lt;!-- 设置访问数据库--&gt;
+    &lt;property name=<span class="string">"schemas"</span>&gt;vip_user&lt;/property&gt;
+    &lt;!-- 设置库为只读 --&gt;
+    &lt;property name=<span class="string">"readOnly"</span>&gt;<span class="literal">true</span>&lt;/property&gt;
+&lt;/user&gt;</code></pre>
+<h3 id="schema-xml-文件配置"><a href="#schema-xml-文件配置" class="headerlink" title="schema.xml 文件配置"></a>schema.xml 文件配置</h3><pre><code class="bash">&lt;!-- 设置数据库名称与server.xml文件一致 --&gt;
+&lt;schema name=<span class="string">"vip_user"</span> checkSQLschema=<span class="string">"true"</span> sqlMaxLimit=<span class="string">"100"</span>&gt;
+    &lt;!-- 访问的数据库表、以id进行分表 、数据库连接、表切分规则 --&gt;
+    &lt;table name=<span class="string">"vip_user"</span> primaryKey=<span class="string">"ID"</span> dataNode=<span class="string">"dn1,dn2"</span> rule=<span class="string">"mod-long"</span> /&gt;
+&lt;/schema&gt;
+&lt;!-- dn1数据库连接,连接的数据库名:vip1_user --&gt;
+&lt;dataNode name=<span class="string">"dn1"</span> dataHost=<span class="string">"localhost1"</span> database=<span class="string">"vip1_user"</span> /&gt;
+&lt;!-- dn2数据库连接,连接的数据库名:vip2_user --&gt;
+&lt;dataNode name=<span class="string">"dn2"</span> dataHost=<span class="string">"localhost1"</span> database=<span class="string">"vip2_user"</span> /&gt;
+&lt;!-- 物理库分片映射,  balance:设置是否开启读写分离, --&gt;
+&lt;dataHost name=<span class="string">"localhost1"</span> maxCon=<span class="string">"1000"</span> minCon=<span class="string">"10"</span> balance=<span class="string">"0"</span>
+          writeType=<span class="string">"0"</span> dbType=<span class="string">"mysql"</span> dbDriver=<span class="string">"native"</span> switchType=<span class="string">"1"</span>  slaveThreshold=<span class="string">"100"</span>&gt;
+    &lt;!-- 数据库心跳监控--&gt;      
+    &lt;heartbeat&gt;select user()&lt;/heartbeat&gt;
+    &lt;!-- 写数据库连接信息 --&gt;
+    &lt;writeHost host=<span class="string">"hostM1"</span> url=<span class="string">"192.168.11.128:3306"</span> user=<span class="string">"zheng"</span>
+               password=<span class="string">"123456"</span>&gt;
+     &lt;!-- 读数据库连接信息  --&gt;     
+     &lt;!-- &lt;readHost host=<span class="string">"hostM2"</span> url=<span class="string">"192.168.11.128:3306"</span> user=<span class="string">"zheng"</span> password=<span class="string">"123456"</span>&gt;     --&gt;     
+    &lt;/writeHost&gt;
+&lt;/dataHost&gt;</code></pre>
+<h3 id="rule-xml-文件配置"><a href="#rule-xml-文件配置" class="headerlink" title="rule.xml 文件配置"></a>rule.xml 文件配置</h3><p>  rule是表切分规则文件</p>
+
       
     </div>
     
