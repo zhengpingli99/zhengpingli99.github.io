@@ -107,7 +107,7 @@
 				
 				<section class="switch-part switch-part2">
 					<div class="widget tagcloud" id="js-tagcloud">
-						<a href="/tags/docker/" style="font-size: 20px;">docker</a> <a href="/tags/java/" style="font-size: 20px;">java</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/mysql/" style="font-size: 20px;">mysql</a>
+						<a href="/tags/docker/" style="font-size: 20px;">docker</a> <a href="/tags/elasticsearch/" style="font-size: 10px;">elasticsearch</a> <a href="/tags/java/" style="font-size: 20px;">java</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/mysql/" style="font-size: 20px;">mysql</a>
 					</div>
 				</section>
 				
@@ -162,6 +162,93 @@
 	</div>
 </nav>
       <div class="body-wrap">
+  
+    <article id="post-docker-elasticsearch" class="article article-type-post" itemscope itemprop="blogPost">
+  
+    <div class="article-meta">
+      <a href="/2019/11/29/docker-elasticsearch/" class="article-date">
+  	<time datetime="2019-11-29T09:39:59.000Z" itemprop="datePublished">2019-11-29</time>
+</a>
+    </div>
+  
+  <div class="article-inner">
+    
+      <input type="hidden" class="isFancy" />
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/11/29/docker-elasticsearch/">
+        全文检索 Elasticsearch
+        
+      </a>
+    </h1>
+  
+
+      </header>
+      
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>ElasticSearch是一个基于Lucene的搜索服务器。它提供了一个分布式多用户能力的全文搜索引擎，基于RESTful web接口。Elasticsearch是用Java语言开发的，并作为Apache许可条款下的开放源码发布，是一种流行的企业级搜索引擎。ElasticSearch用于云计算中，能够达到实时搜索，稳定，可靠，快速，安装使用方便</p>
+<h2 id="Docker-安装ElasticSearch"><a href="#Docker-安装ElasticSearch" class="headerlink" title="Docker 安装ElasticSearch"></a>Docker 安装ElasticSearch</h2><p>创建本地映射文件目录</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">1.elasticsearch 配置文件</span><br><span class="line">$ mkdir  /home/zheng/elasticsearch/config</span><br><span class="line">2.elasticsearch 分词配置</span><br><span class="line">$ mkdir /home/zheng/elasticsearch/plugins</span><br></pre></td></tr></table></figure>
+
+<p> 下载 ElasticSearch 镜像文件</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ docker pull   nshou/elasticsearch-kibana</span><br></pre></td></tr></table></figure>
+
+<p> elasticsearch 启动后将相关配置copy 到宿主机中( <a color="red"> 注:不想下载elasticsearch配置文件</a>)</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ docker cp  e271e9449cc0:/home/elasticsearch/elasticsearch/config /home/zheng/elasticsearch/config</span><br></pre></td></tr></table></figure>
+
+<p> 将文件复制到容器中( <a color="red"> 注:dockers 命令笔记</a>)</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ docker cp [本地目录]  96f7f14e99ab:/[容器目录]</span><br></pre></td></tr></table></figure>
+
+<p>下载 elasticsearch-analysis-ik 分词器( <a color="red"> 注:本版要与elasticsearch 本版一致</a>)</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ https://github.com/medcl/elasticsearch-analysis-ik/releases</span><br></pre></td></tr></table></figure>
+
+<p>将 elasticsearch-analysis-ik 分词器上传到 ( <a color="red"> 注:需要其他分词只需上传到该目录</a>)</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ /home/zheng/elasticsearch/plugins</span><br></pre></td></tr></table></figure>
+
+<p>启动 elasticsearch,完成文件映射</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ docker run -d -p 9200:9200 -p 5601:5601  --privileged=<span class="literal">true</span> -v /home/zheng/elasticsearch/config:/home/elasticsearch/elasticsearch/config -v /home/zheng/elasticsearch/plugins:/home/elasticsearch/elasticsearch/plugins  nshou/elasticsearch-kibana</span><br></pre></td></tr></table></figure>
+
+<p> 配置ik分词相关信息</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ /home/zheng/elasticsearch/plugins/ik/config</span><br></pre></td></tr></table></figure>
+
+<p> 在IKAnalyzer.cfg.xml 文件中设置</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">  &lt;comment&gt;IK Analyzer 扩展配置&lt;/comment&gt;</span><br><span class="line">&lt;!--用户可以在这里配置自己的扩展字典 --&gt;</span><br><span class="line">&lt;entry key=<span class="string">"ext_dict"</span>&gt;&lt;/entry&gt;</span><br><span class="line"> &lt;!--用户可以在这里配置自己的扩展停止词字典--&gt;</span><br><span class="line">&lt;entry key=<span class="string">"ext_stopwords"</span>&gt;&lt;/entry&gt;</span><br><span class="line">&lt;!--用户可以在这里配置远程扩展字典 --&gt;</span><br><span class="line">&lt;!-- &lt;entry key=<span class="string">"remote_ext_dict"</span>&gt;words_location&lt;/entry&gt; --&gt;</span><br><span class="line">&lt;!--用户可以在这里配置远程扩展停止词字典--&gt;</span><br><span class="line">&lt;!-- &lt;entry key=<span class="string">"remote_ext_stopwords"</span>&gt;words_location&lt;/entry&gt; --&gt;</span><br></pre></td></tr></table></figure>
+
+<p>分词效果如下：<br> <img src="/img/20191129/docker-kibana.png"></p>
+
+      
+    </div>
+    
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/elasticsearch/">elasticsearch</a></li></ul>
+	</div>
+
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+      
+    
+  </div>
+  
+</article>
+
+
+
+
+
+
+
   
     <article id="post-distributed-id" class="article article-type-post" itemscope itemprop="blogPost">
   
