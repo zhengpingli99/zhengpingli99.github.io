@@ -163,6 +163,87 @@
 </nav>
       <div class="body-wrap">
   
+    <article id="post-auto-deployment-0" class="article article-type-post" itemscope itemprop="blogPost">
+  
+    <div class="article-meta">
+      <a href="/2020/07/05/auto-deployment-0/" class="article-date">
+  	<time datetime="2020-07-05T10:01:52.000Z" itemprop="datePublished">2020-07-05</time>
+</a>
+    </div>
+  
+  <div class="article-inner">
+    
+      <input type="hidden" class="isFancy" />
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2020/07/05/auto-deployment-0/">
+        GitLab 实战
+        
+      </a>
+    </h1>
+  
+
+      </header>
+      
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>GitLab是一个利用 Ruby on Rails 开发的开源应用程序，实现一个自托管的Git项目仓库，可通过Web界面进行访问公开的或者私人项目。<br>它拥有与Github类似的功能，能够浏览源代码，管理缺陷和注释。可以管理团队对仓库的访问，它非常易于浏览提交过的版本并提供一个文件历史库。它还提供一个代码片段收集功能可以轻松实现代码复用，便于日后有需要的时候进行查找.</p>
+<h2 id="GitLab安装及配置"><a href="#GitLab安装及配置" class="headerlink" title="GitLab安装及配置"></a>GitLab安装及配置</h2><p> gitlab-ce为稳定版本，后面不填写版本则默认pull最新latest版本</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  docker pull gitlab/gitlab-ce</span><br></pre></td></tr></table></figure>
+
+<p> 运行gitlab镜像  </p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">$  docker run -d  -p 443:443 -p 3088:80 -p 222:22 --name gitlab --restart always </span><br><span class="line">  -v /home/zheng/gitlab/config:/etc/gitlab -v /home/zheng/gitlab/logs:/var/<span class="built_in">log</span>/gitlab </span><br><span class="line">  -v /home/zheng/gitlab/data:/var/opt/gitlab --privileged=<span class="literal">true</span> gitlab/gitlab-ce</span><br><span class="line"><span class="comment"># -d：后台运行</span></span><br><span class="line"><span class="comment"># -p：将容器内部端口向外映射</span></span><br><span class="line"><span class="comment"># --name：命名容器名称</span></span><br><span class="line"><span class="comment"># -v：将容器内数据文件夹或者日志、配置等文件夹挂载到宿主机指定目录</span></span><br></pre></td></tr></table></figure>
+
+<p> 配置gitlab</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">1.gitlab.rb文件内容默认全是注释</span><br><span class="line">$ vim /home/gitlab/config/gitlab.rb</span><br><span class="line"></span><br><span class="line">2.配置http协议所使用的访问地址,不加端口号默认为80</span><br><span class="line">$ external_url <span class="string">'http://192.168.11.138'</span></span><br><span class="line"></span><br><span class="line">3.配置ssh协议所使用的访问地址和端口</span><br><span class="line">$ gitlab_rails[<span class="string">'gitlab_ssh_host'</span>] = <span class="string">'192.168.11.138'</span></span><br><span class="line">$ gitlab_rails[<span class="string">'gitlab_shell_ssh_port'</span>] = 222 <span class="comment"># 此端口是run时22端口映射的222端口</span></span><br><span class="line"></span><br><span class="line">4.重启gitlab容器</span><br><span class="line">$ docker restart gitlab</span><br></pre></td></tr></table></figure>
+
+<h2 id="安装Gitlab-Runner"><a href="#安装Gitlab-Runner" class="headerlink" title="安装Gitlab-Runner"></a>安装Gitlab-Runner</h2><p> 可以在某个项目里``settings –&gt; CICD –&gt; Runner进行配置，也可以在GitLab主设置页安装共享Runner(shared:共享 group:项目组 Specific:项目 )</p>
+<h3 id="1-拉取镜像"><a href="#1-拉取镜像" class="headerlink" title="1.拉取镜像"></a>1.拉取镜像</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  docker pull gitlab/gitlab-runner</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-启动gitlab-runner"><a href="#2-启动gitlab-runner" class="headerlink" title="2.启动gitlab-runner"></a>2.启动gitlab-runner</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  docker run -d --name gitlab-runner --restart always  -v /home/zheng/gitlab-runner/docker.sock:/var/run/docker.sock -v /home/zheng/gitlab-runner/config:/etc/gitlab-runner gitlab/gitlab-runner</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-注册runner"><a href="#3-注册runner" class="headerlink" title="3.注册runner"></a>3.注册runner</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">1.进入Runner容器内</span><br><span class="line">$ docker <span class="built_in">exec</span> -it gitlab-runner bash</span><br><span class="line">2.运行以下命令</span><br><span class="line">$ gitlab-runner register</span><br><span class="line">3.输入Gitlab实例的地址</span><br><span class="line"></span><br><span class="line">4.输入token</span><br><span class="line"></span><br><span class="line">5.输入Runner的描述</span><br><span class="line"></span><br><span class="line">6.输入与Runner关联的标签(tags)</span><br><span class="line"></span><br><span class="line">7.输入Ruuner的执行者(docker k8s shll)</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-修改Runner配置文件"><a href="#4-修改Runner配置文件" class="headerlink" title="4.修改Runner配置文件"></a>4.修改Runner配置文件</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"> $ vim /srv/gitlab-runner/config/config.toml</span><br><span class="line">1.找到volumes配置，修改为如下，分别是挂载了宿主机的docker和配置Maven的缓存，提高效率</span><br><span class="line"> $ volumes = [<span class="string">"/cache"</span>,<span class="string">"/var/run/docker.sock:/var/run/docker.sock"</span>,<span class="string">"/data/.m2/:/.m2/"</span>]</span><br><span class="line">2.在volumes配置下方增加一行配置，防止Runner重复拉取镜像</span><br><span class="line"> $ pull_policy = <span class="string">"if-not-present"</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="重启Runner即可"><a href="#重启Runner即可" class="headerlink" title="重启Runner即可"></a>重启Runner即可</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ docker restart gitlab-runner</span><br></pre></td></tr></table></figure>
+
+<h3 id="项目根目录创建-gitlab-ci-yml文件"><a href="#项目根目录创建-gitlab-ci-yml文件" class="headerlink" title="项目根目录创建.gitlab-ci.yml文件"></a>项目根目录创建.gitlab-ci.yml文件</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 因为我们Runner执行器设置为docker, 所以这里需要指定docker的版本</span></span><br><span class="line">image: docker:stable</span><br><span class="line"><span class="comment"># 定义三个阶段</span></span><br><span class="line">stages:</span><br><span class="line">  - compile</span><br><span class="line">  - build</span><br><span class="line">  - run</span><br><span class="line"><span class="comment"># 定义个变量, 指定maven下载的jar包存放的位置</span></span><br><span class="line">variables:</span><br><span class="line">  MAVEN_OPTS: <span class="string">"-Dmaven.repo.local=/.m2"</span></span><br><span class="line"><span class="comment"># 第一阶段</span></span><br><span class="line">compile:</span><br><span class="line">  <span class="comment"># 打包用到了maven, 所有需要拉取maven镜像, 这是我自己构建的阿里云maven私服的maven镜像</span></span><br><span class="line">  image: registry.cn-hangzhou.aliyuncs.com/gjing/maven:1.0</span><br><span class="line">  <span class="comment"># 指定阶段</span></span><br><span class="line">  stage: compile</span><br><span class="line">  <span class="comment"># 运行脚本, 使用变量时要用到 $ 符号</span></span><br><span class="line">  script:</span><br><span class="line">    - mvn <span class="variable">$MAVEN_OPTS</span> clean package -Dmaven.test.skip=<span class="literal">true</span></span><br><span class="line">  <span class="comment"># 只作用在master分支</span></span><br><span class="line">  only:</span><br><span class="line">    - master</span><br><span class="line">  <span class="comment"># 创建runner时指定的tag</span></span><br><span class="line">  tags:</span><br><span class="line">    - <span class="built_in">test</span></span><br><span class="line">  <span class="comment"># 编译后有产物,所以要指定下过期时间和路径, 以供于其他阶段使用</span></span><br><span class="line">  artifacts:</span><br><span class="line">    expire_in: 1 days</span><br><span class="line">    paths:</span><br><span class="line">      - target/*.jar</span><br><span class="line"><span class="comment"># 第二阶段, 这里不再一一介绍, 和第一阶段差不多</span></span><br><span class="line">build:</span><br><span class="line">  stage: build</span><br><span class="line">  script:</span><br><span class="line">    - docker build -t registry.cn-hangzhou.aliyuncs.com/gjing/<span class="built_in">test</span>:1.0 .</span><br><span class="line">    - docker login --username xxx --password xxx registry.cn-hangzhou.aliyuncs.com</span><br><span class="line">    - docker push registry.cn-hangzhou.aliyuncs.com/gjing/<span class="built_in">test</span>:1.0</span><br><span class="line">  only:</span><br><span class="line">    - master</span><br><span class="line">  tags:</span><br><span class="line">    - <span class="built_in">test</span></span><br><span class="line">run:</span><br><span class="line">  stage: run</span><br><span class="line">  script:</span><br><span class="line">    - docker run -d --name my-test -p 8000:8000 registry.cn-hangzhou.aliyuncs.com/gjing/<span class="built_in">test</span>:1.0</span><br><span class="line">  only:</span><br><span class="line">    - master</span><br><span class="line">  tags:</span><br><span class="line">    - <span class="built_in">test</span></span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+    
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/docker/">docker</a></li></ul>
+	</div>
+
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+      
+    
+  </div>
+  
+</article>
+
+
+
+
+
+
+
+  
     <article id="post-docker-elasticsearch" class="article article-type-post" itemscope itemprop="blogPost">
   
     <div class="article-meta">
@@ -923,70 +1004,10 @@ CMD [<span class="string">"/usr/local/mycat/bin/mycat"</span>, <span class="stri
 
 
   
-    <article id="post-hello-world" class="article article-type-post" itemscope itemprop="blogPost">
   
-    <div class="article-meta">
-      <a href="/2019/07/23/hello-world/" class="article-date">
-  	<time datetime="2019-07-23T09:39:57.000Z" itemprop="datePublished">2019-07-23</time>
-</a>
-    </div>
-  
-  <div class="article-inner">
-    
-      <input type="hidden" class="isFancy" />
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2019/07/23/hello-world/">
-        Hexo 操作说明
-        
-      </a>
-    </h1>
-  
-
-      </header>
-      
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <h2 id="Hexo-github-搭建自己个人博客"><a href="#Hexo-github-搭建自己个人博客" class="headerlink" title="Hexo + github 搭建自己个人博客"></a>Hexo + github <a href="https://www.cnblogs.com/fengxiongZz/p/7707219.html" target="_blank" rel="noopener">搭建自己个人博客</a></h2><h3 id="新建"><a href="#新建" class="headerlink" title="新建"></a>新建</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-
-<h3 id="分页"><a href="#分页" class="headerlink" title="分页"></a>分页</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new page <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-
-<h3 id="启动服务"><a href="#启动服务" class="headerlink" title="启动服务"></a>启动服务</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<h3 id="生成静态文件"><a href="#生成静态文件" class="headerlink" title="生成静态文件"></a>生成静态文件</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  hexo g</span><br></pre></td></tr></table></figure>
-
-<h3 id="上传到远程服务器上"><a href="#上传到远程服务器上" class="headerlink" title="上传到远程服务器上"></a>上传到远程服务器上</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-
-      
-    </div>
-    
-    <div class="article-info article-info-index">
-      
-      
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-      
-    
-  </div>
-  
-</article>
-
-
-
-
-
-
-
-  
+    <nav id="page-nav">
+      <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
+    </nav>
   
 </div>
       <footer id="footer">
