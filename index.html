@@ -107,7 +107,7 @@
 				
 				<section class="switch-part switch-part2">
 					<div class="widget tagcloud" id="js-tagcloud">
-						<a href="/tags/docker/" style="font-size: 20px;">docker</a> <a href="/tags/elasticsearch/" style="font-size: 10px;">elasticsearch</a> <a href="/tags/java/" style="font-size: 15px;">java</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/mysql/" style="font-size: 15px;">mysql</a>
+						<a href="/tags/docker/" style="font-size: 20px;">docker</a> <a href="/tags/elasticsearch/" style="font-size: 10px;">elasticsearch</a> <a href="/tags/java/" style="font-size: 20px;">java</a> <a href="/tags/maven/" style="font-size: 10px;">maven</a> <a href="/tags/mysql/" style="font-size: 15px;">mysql</a>
 					</div>
 				</section>
 				
@@ -162,6 +162,261 @@
 	</div>
 </nav>
       <div class="body-wrap">
+  
+    <article id="post-delay-queue" class="article article-type-post" itemscope itemprop="blogPost">
+  
+    <div class="article-meta">
+      <a href="/2022/07/09/delay-queue/" class="article-date">
+  	<time datetime="2022-07-09T03:15:14.000Z" itemprop="datePublished">2022-07-09</time>
+</a>
+    </div>
+  
+  <div class="article-inner">
+    
+      <input type="hidden" class="isFancy" />
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/07/09/delay-queue/">
+        SpringBoot集成Redisson实现延迟队列
+        
+      </a>
+    </h1>
+  
+
+      </header>
+      
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>对于延时比较长的场景、实时性不高的场景，我们可以采用任务调度的方式定时轮询处理。当然有更好的解决方案，可根据公司的技术选型和业务体系选择最优方案。</p>
+<h2 id="引入-Redisson-依赖"><a href="#引入-Redisson-依赖" class="headerlink" title="引入 Redisson 依赖"></a>引入 Redisson 依赖</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">  &lt;groupId&gt;org.redisson&lt;/groupId&gt;</span><br><span class="line">  &lt;artifactId&gt;redisson-spring-boot-starter&lt;/artifactId&gt;</span><br><span class="line">  &lt;version&gt;3.10.5&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+
+<h2 id="配置-Redis-连接"><a href="#配置-Redis-连接" class="headerlink" title="配置 Redis 连接"></a>配置 Redis 连接</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">spring:</span><br><span class="line">  redis:</span><br><span class="line">    host: 127.0.0.1</span><br><span class="line">    port: 6379</span><br><span class="line">    password: 123456</span><br><span class="line">    database: 12</span><br><span class="line">    timeout: 3000</span><br></pre></td></tr></table></figure>
+
+<h2 id="创建-RedissonConfig-配置"><a href="#创建-RedissonConfig-配置" class="headerlink" title="创建 RedissonConfig 配置"></a>创建 RedissonConfig 配置</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * Created by LPB on 2020/04/20.</span><br><span class="line"> */</span><br><span class="line">@Configuration</span><br><span class="line">public class RedissonConfig &#123;</span><br><span class="line">  </span><br><span class="line">    @Value(<span class="string">"<span class="variable">$&#123;spring.redis.host&#125;</span>"</span>)</span><br><span class="line">    private String host;</span><br><span class="line">    @Value(<span class="string">"<span class="variable">$&#123;spring.redis.port&#125;</span>"</span>)</span><br><span class="line">    private int port;</span><br><span class="line">    @Value(<span class="string">"<span class="variable">$&#123;spring.redis.database&#125;</span>"</span>)</span><br><span class="line">    private int database;</span><br><span class="line">    @Value(<span class="string">"<span class="variable">$&#123;spring.redis.password&#125;</span>"</span>)</span><br><span class="line">    private String password;</span><br><span class="line">  </span><br><span class="line">    @Bean</span><br><span class="line">    public RedissonClient <span class="function"><span class="title">redissonClient</span></span>() &#123;</span><br><span class="line">        Config config = new Config();</span><br><span class="line">        config.useSingleServer()</span><br><span class="line">            .setAddress(<span class="string">"redis://"</span> + host + <span class="string">":"</span> + port)</span><br><span class="line">            .setDatabase(database)</span><br><span class="line">            .setPassword(password);</span><br><span class="line">        <span class="built_in">return</span> Redisson.create(config);</span><br><span class="line">    &#125;</span><br><span class="line">  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="封装-Redis-延迟队列工具类"><a href="#封装-Redis-延迟队列工具类" class="headerlink" title="封装 Redis 延迟队列工具类"></a>封装 Redis 延迟队列工具类</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * redis延迟队列工具</span><br><span class="line"> * Created by LPB on 2021/04/20.</span><br><span class="line"> */</span><br><span class="line">@Slf4j</span><br><span class="line">@Component</span><br><span class="line">public class RedisDelayQueueUtil &#123;</span><br><span class="line">  </span><br><span class="line">    @Autowired</span><br><span class="line">    private RedissonClient redissonClient;</span><br><span class="line">  </span><br><span class="line">    /**</span><br><span class="line">     * 添加延迟队列</span><br><span class="line">     * @param value 队列值</span><br><span class="line">     * @param delay 延迟时间</span><br><span class="line">     * @param timeUnit 时间单位</span><br><span class="line">     * @param queueCode 队列键</span><br><span class="line">     * @param &lt;T&gt;</span><br><span class="line">     */</span><br><span class="line">    public &lt;T&gt; void addDelayQueue(T value, long delay, TimeUnit timeUnit, String queueCode)&#123;</span><br><span class="line">        try &#123;</span><br><span class="line">            RBlockingDeque&lt;Object&gt; blockingDeque = redissonClient.getBlockingDeque(queueCode);</span><br><span class="line">            RDelayedQueue&lt;Object&gt; delayedQueue = redissonClient.getDelayedQueue(blockingDeque);</span><br><span class="line">            delayedQueue.offer(value, delay, timeUnit);</span><br><span class="line">            log.info(<span class="string">"(添加延时队列成功) 队列键：&#123;&#125;，队列值：&#123;&#125;，延迟时间：&#123;&#125;"</span>, queueCode, value, timeUnit.toSeconds(delay) + <span class="string">"秒"</span>);</span><br><span class="line">        &#125; catch (Exception e) &#123;</span><br><span class="line">            log.error(<span class="string">"(添加延时队列失败) &#123;&#125;"</span>, e.getMessage());</span><br><span class="line">            throw new RuntimeException(<span class="string">"(添加延时队列失败)"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  </span><br><span class="line">    /**</span><br><span class="line">     * 获取延迟队列</span><br><span class="line">     * @param queueCode</span><br><span class="line">     * @param &lt;T&gt;</span><br><span class="line">     * @<span class="built_in">return</span></span><br><span class="line">     * @throws InterruptedException</span><br><span class="line">     */</span><br><span class="line">    public &lt;T&gt; T getDelayQueue(String queueCode) throws InterruptedException &#123;</span><br><span class="line">        RBlockingDeque&lt;Map&gt; blockingDeque = redissonClient.getBlockingDeque(queueCode);</span><br><span class="line">        T value  = (T) blockingDeque.take();</span><br><span class="line">        <span class="built_in">return</span> value;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="创建延迟队列业务枚举"><a href="#创建延迟队列业务枚举" class="headerlink" title="创建延迟队列业务枚举"></a>创建延迟队列业务枚举</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"> /**</span><br><span class="line"> * 延迟队列业务枚举</span><br><span class="line"> * Created by LPB on 2021/04/20.</span><br><span class="line"> */</span><br><span class="line">@Getter</span><br><span class="line">@NoArgsConstructor</span><br><span class="line">@AllArgsConstructor</span><br><span class="line">public enum RedisDelayQueueEnum &#123;</span><br><span class="line">  </span><br><span class="line">    ORDER_PAYMENT_TIMEOUT(<span class="string">"ORDER_PAYMENT_TIMEOUT"</span>,<span class="string">"订单支付超时，自动取消订单"</span>, <span class="string">"orderPaymentTimeout"</span>),</span><br><span class="line">    ORDER_TIMEOUT_NOT_EVALUATED(<span class="string">"ORDER_TIMEOUT_NOT_EVALUATED"</span>, <span class="string">"订单超时未评价，系统默认好评"</span>, <span class="string">"orderTimeoutNotEvaluated"</span>);</span><br><span class="line">  </span><br><span class="line">    /**</span><br><span class="line">     * 延迟队列 Redis Key</span><br><span class="line">     */</span><br><span class="line">    private String code;</span><br><span class="line">  </span><br><span class="line">    /**</span><br><span class="line">     * 中文描述</span><br><span class="line">     */</span><br><span class="line">    private String name;</span><br><span class="line">  </span><br><span class="line">    /**</span><br><span class="line">     * 延迟队列具体业务实现的 Bean</span><br><span class="line">     * 可通过 Spring 的上下文获取</span><br><span class="line">     */</span><br><span class="line">    private String beanId;</span><br><span class="line">  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="定义延迟队列执行器"><a href="#定义延迟队列执行器" class="headerlink" title="定义延迟队列执行器"></a>定义延迟队列执行器</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * 延迟队列执行器</span><br><span class="line"> * Created by LPB on 2021/04/20.</span><br><span class="line"> */</span><br><span class="line">public interface RedisDelayQueueHandle&lt;T&gt; &#123;</span><br><span class="line">  </span><br><span class="line">    void execute(T t);</span><br><span class="line">  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="创建枚举中定义的Bean，并实现延迟队列执行器-OrderPaymentTimeout：订单支付超时延迟队列处理类"><a href="#创建枚举中定义的Bean，并实现延迟队列执行器-OrderPaymentTimeout：订单支付超时延迟队列处理类" class="headerlink" title="创建枚举中定义的Bean，并实现延迟队列执行器 OrderPaymentTimeout：订单支付超时延迟队列处理类"></a>创建枚举中定义的Bean，并实现延迟队列执行器 OrderPaymentTimeout：订单支付超时延迟队列处理类</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * 订单支付超时处理类</span><br><span class="line"> * Created by LPB on 2021/04/20.</span><br><span class="line"> */</span><br><span class="line">@Component</span><br><span class="line">@Slf4j</span><br><span class="line">public class OrderPaymentTimeout implements RedisDelayQueueHandle&lt;Map&gt; &#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void execute(Map map) &#123;</span><br><span class="line">        log.info(<span class="string">"(收到订单支付超时延迟消息) &#123;&#125;"</span>, map);</span><br><span class="line">        // TODO 订单支付超时，自动取消订单处理业务...</span><br><span class="line">  </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="创建延迟队列消费线程，项目启动完成后开启"><a href="#创建延迟队列消费线程，项目启动完成后开启" class="headerlink" title="创建延迟队列消费线程，项目启动完成后开启"></a>创建延迟队列消费线程，项目启动完成后开启</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * 启动延迟队列</span><br><span class="line"> * Created by LPB on 2021/04/20.</span><br><span class="line"> */</span><br><span class="line">@Slf4j</span><br><span class="line">@Component</span><br><span class="line">public class RedisDelayQueueRunner implements CommandLineRunner &#123;</span><br><span class="line">  </span><br><span class="line">    @Autowired</span><br><span class="line">    private RedisDelayQueueUtil redisDelayQueueUtil;</span><br><span class="line">  </span><br><span class="line">    @Override</span><br><span class="line">    public void run(String... args) &#123;</span><br><span class="line">        new Thread(() -&gt; &#123;</span><br><span class="line">            <span class="keyword">while</span> (<span class="literal">true</span>)&#123;</span><br><span class="line">                try &#123;</span><br><span class="line">                    RedisDelayQueueEnum[] queueEnums = RedisDelayQueueEnum.values();</span><br><span class="line">                    <span class="keyword">for</span> (RedisDelayQueueEnum queueEnum : queueEnums) &#123;</span><br><span class="line">                        Object value = redisDelayQueueUtil.getDelayQueue(queueEnum.getCode());</span><br><span class="line">                        <span class="keyword">if</span> (value != null) &#123;</span><br><span class="line">                            RedisDelayQueueHandle redisDelayQueueHandle = SpringUtil.getBean(queueEnum.getBeanId());</span><br><span class="line">                            redisDelayQueueHandle.execute(value);</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125; catch (InterruptedException e) &#123;</span><br><span class="line">                    log.error(<span class="string">"(Redis延迟队列异常中断) &#123;&#125;"</span>, e.getMessage());</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;).start();</span><br><span class="line">        log.info(<span class="string">"(Redis延迟队列启动成功)"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="创建一个测试接口，模拟添加延迟队列"><a href="#创建一个测试接口，模拟添加延迟队列" class="headerlink" title="创建一个测试接口，模拟添加延迟队列"></a>创建一个测试接口，模拟添加延迟队列</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * 延迟队列测试</span><br><span class="line"> * Created by LPB on 2020/04/20.</span><br><span class="line"> */</span><br><span class="line">@RestController</span><br><span class="line">public class RedisDelayQueueController &#123;</span><br><span class="line">  </span><br><span class="line">    @Autowired</span><br><span class="line">    private RedisDelayQueueUtil redisDelayQueueUtil;</span><br><span class="line">  </span><br><span class="line">    @PostMapping(<span class="string">"/addQueue"</span>)</span><br><span class="line">    public void <span class="function"><span class="title">addQueue</span></span>() &#123;</span><br><span class="line">        Map&lt;String, String&gt; map1 = new HashMap&lt;&gt;();</span><br><span class="line">        map1.put(<span class="string">"orderId"</span>, <span class="string">"100"</span>);</span><br><span class="line">        map1.put(<span class="string">"remark"</span>, <span class="string">"订单支付超时，自动取消订单"</span>);</span><br><span class="line">  </span><br><span class="line">        Map&lt;String, String&gt; map2 = new HashMap&lt;&gt;();</span><br><span class="line">        map2.put(<span class="string">"orderId"</span>, <span class="string">"200"</span>);</span><br><span class="line">        map2.put(<span class="string">"remark"</span>, <span class="string">"订单超时未评价，系统默认好评"</span>);</span><br><span class="line">  </span><br><span class="line">        // 添加订单支付超时，自动取消订单延迟队列。为了测试效果，延迟10秒钟</span><br><span class="line">        redisDelayQueueUtil.addDelayQueue(map1, 10, TimeUnit.SECONDS, RedisDelayQueueEnum.ORDER_PAYMENT_TIMEOUT.getCode());</span><br><span class="line">  </span><br><span class="line">        // 订单超时未评价，系统默认好评。为了测试效果，延迟20秒钟</span><br><span class="line">        redisDelayQueueUtil.addDelayQueue(map2, 20, TimeUnit.SECONDS, RedisDelayQueueEnum.ORDER_TIMEOUT_NOT_EVALUATED.getCode());</span><br><span class="line">    &#125;</span><br><span class="line">  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+    
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+      
+    
+  </div>
+  
+</article>
+
+
+
+
+
+
+
+  
+    <article id="post-exception-handling" class="article article-type-post" itemscope itemprop="blogPost">
+  
+    <div class="article-meta">
+      <a href="/2022/03/17/exception-handling/" class="article-date">
+  	<time datetime="2022-03-17T12:00:00.000Z" itemprop="datePublished">2022-03-17</time>
+</a>
+    </div>
+  
+  <div class="article-inner">
+    
+      <input type="hidden" class="isFancy" />
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/03/17/exception-handling/">
+        统一异常处理
+        
+      </a>
+    </h1>
+  
+
+      </header>
+      
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>try catch是一套对应于异常处理的语句，其中try语句内用于编写有异常存在的语句，而catch语句内用于填写捕获到异常的类型以及对异常对象的处理方法</p>
+<h3 id="统一异常处理实战"><a href="#统一异常处理实战" class="headerlink" title="统一异常处理实战"></a>统一异常处理实战</h3><p>善解人意的 Enum    自定义异常 BaseException 有 2 个属性，即 code、message</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">public interface IResponseEnum &#123;</span><br><span class="line">    Integer getCode();</span><br><span class="line">    String getMessage();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>继承基础异常类</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> *基础异常类</span><br><span class="line"> */</span><br><span class="line">@Data</span><br><span class="line">public class BaseException extends  RuntimeException&#123;</span><br><span class="line"></span><br><span class="line">    private IResponseEnum responseEnum;</span><br><span class="line">    private   Object[] args;</span><br><span class="line">    public BaseException(IResponseEnum responseEnum) &#123;</span><br><span class="line">        super(responseEnum.getMessage());</span><br><span class="line">        this.responseEnum=responseEnum;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public BaseException(IResponseEnum responseEnum, Object[] args, String message) &#123;</span><br><span class="line">        super(message);</span><br><span class="line">        this.responseEnum=responseEnum;</span><br><span class="line">        this.args=args;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public BaseException(IResponseEnum responseEnum, Object[] args, String message, Throwable cause) &#123;</span><br><span class="line">        super(message, cause);</span><br><span class="line">        this.responseEnum=responseEnum;</span><br><span class="line">        this.args=args;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>定义业务异常类</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * &lt;p&gt;业务异常&lt;/p&gt;</span><br><span class="line"> * &lt;p&gt;业务处理时，出现异常，可以抛出该异常&lt;/p&gt;</span><br><span class="line"> */</span><br><span class="line">public class BusinessException extends  BaseException&#123;</span><br><span class="line">    private static final long serialVersionUID = 1L;</span><br><span class="line"></span><br><span class="line">    public BusinessException(IResponseEnum responseEnum) &#123;</span><br><span class="line">        super(responseEnum);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public BusinessException(IResponseEnum responseEnum, Object[] args, String message) &#123;</span><br><span class="line">        super(responseEnum, args, message);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public BusinessException(IResponseEnum responseEnum, Object[] args, String message, Throwable cause) &#123;</span><br><span class="line">        super(responseEnum, args, message, cause);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>用 Assert（断言）替换 throw exception</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">  public interface Assert &#123;</span><br><span class="line">    /**</span><br><span class="line">     * 创建异常</span><br><span class="line">     * @param args</span><br><span class="line">     * @<span class="built_in">return</span></span><br><span class="line">     */</span><br><span class="line">    BaseException newException(Object... args);</span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * 创建异常</span><br><span class="line">     * @param t</span><br><span class="line">     * @param args</span><br><span class="line">     * @<span class="built_in">return</span></span><br><span class="line">     */</span><br><span class="line">    BaseException newException(Throwable t, Object... args);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * 抛出异常</span><br><span class="line">     */</span><br><span class="line">    default void <span class="function"><span class="title">assertException</span></span>() &#123;</span><br><span class="line">            throw newException();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * &lt;p&gt;断言对象&lt;code&gt;obj&lt;/code&gt;非空。如果对象&lt;code&gt;obj&lt;/code&gt;为空，则抛出异常</span><br><span class="line">     * @param obj 待判断对象</span><br><span class="line">     */</span><br><span class="line">    default void assertNotNull(Object obj) &#123;</span><br><span class="line">        <span class="keyword">if</span> (obj == null) &#123;</span><br><span class="line">            throw newException(obj);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * &lt;p&gt;断言对象&lt;code&gt;obj&lt;/code&gt;非空。如果对象&lt;code&gt;obj&lt;/code&gt;为空，则抛出异常</span><br><span class="line">     * &lt;p&gt;异常信息&lt;code&gt;message&lt;/code&gt;支持传递参数方式，避免在判断之前进行字符串拼接操作</span><br><span class="line">     *</span><br><span class="line">     * @param obj 待判断对象</span><br><span class="line">     * @param args message占位符对应的参数列表</span><br><span class="line">     */</span><br><span class="line">    default void assertNotNull(Object obj, Object... args) &#123;</span><br><span class="line">        <span class="keyword">if</span> (obj == null) &#123;</span><br><span class="line">            throw newException(args);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>业务异常断言处理</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">public interface BusinessExceptionAssert extends IResponseEnum, Assert &#123;</span><br><span class="line">    @Override</span><br><span class="line">    default BaseException newException(Object... args) &#123;</span><br><span class="line">        String msg = MessageFormat.format(this.getMessage(), args);</span><br><span class="line">        <span class="built_in">return</span> new BusinessException(this, args, msg);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    default BaseException newException(Throwable t, Object... args) &#123;</span><br><span class="line">        String msg = MessageFormat.format(this.getMessage(), args);</span><br><span class="line">        <span class="built_in">return</span> new BusinessException(this, args, msg, t);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>设置相关业务枚举</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">@Getter</span><br><span class="line">@AllArgsConstructor</span><br><span class="line">public enum CommonResponseEnum implements BusinessExceptionAssert &#123;</span><br><span class="line">    SERVER_ERROR(401,<span class="string">"系统发生异常，请联系管理员"</span>);</span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * 返回码</span><br><span class="line">     */</span><br><span class="line">    private Integer code;</span><br><span class="line">    /**</span><br><span class="line">     * 返回消息</span><br><span class="line">     */</span><br><span class="line">    private String message;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>定义统一异常处理器类</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br></pre></td><td class="code"><pre><span class="line">@Slf4j</span><br><span class="line">@Component</span><br><span class="line">@ControllerAdvice</span><br><span class="line">public class UnifiedExceptionHandler &#123;</span><br><span class="line">    /**</span><br><span class="line">     * 业务异常</span><br><span class="line">     * @param e 异常</span><br><span class="line">     * @<span class="built_in">return</span> 异常结果</span><br><span class="line">     */</span><br><span class="line">    @ExceptionHandler(value = BusinessException.class)</span><br><span class="line">    @ResponseBody</span><br><span class="line">    public R handleBusinessException(BaseException e) &#123;</span><br><span class="line">        log.error(e.getMessage(),e);</span><br><span class="line">        <span class="built_in">return</span>  R.failure(e.getResponseEnum());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * 自定义异常</span><br><span class="line">     *</span><br><span class="line">     * @param e 异常</span><br><span class="line">     * @<span class="built_in">return</span> 异常结果</span><br><span class="line">     */</span><br><span class="line">    @ExceptionHandler(value = BaseException.class)</span><br><span class="line">    @ResponseBody</span><br><span class="line">    public R handleBaseException(BaseException e) &#123;</span><br><span class="line">        log.error(e.getMessage(), e);</span><br><span class="line"></span><br><span class="line">        <span class="built_in">return</span> R.failure(e.getResponseEnum());</span><br><span class="line">    &#125;</span><br><span class="line">    /**</span><br><span class="line">     * Controller上一层相关异常</span><br><span class="line">     *</span><br><span class="line">     * @param e 异常</span><br><span class="line">     * @<span class="built_in">return</span> 异常结果</span><br><span class="line">     */</span><br><span class="line">    @ExceptionHandler(&#123;</span><br><span class="line">            NoHandlerFoundException.class,</span><br><span class="line">            HttpRequestMethodNotSupportedException.class,</span><br><span class="line">            HttpMediaTypeNotSupportedException.class,</span><br><span class="line">            MissingPathVariableException.class,</span><br><span class="line">            MissingServletRequestParameterException.class,</span><br><span class="line">            TypeMismatchException.class,</span><br><span class="line">            HttpMessageNotReadableException.class,</span><br><span class="line">            HttpMessageNotWritableException.class,</span><br><span class="line">            // BindException.class,</span><br><span class="line">            // MethodArgumentNotValidException.class</span><br><span class="line">            HttpMediaTypeNotAcceptableException.class,</span><br><span class="line">            ServletRequestBindingException.class,</span><br><span class="line">            ConversionNotSupportedException.class,</span><br><span class="line">            MissingServletRequestPartException.class,</span><br><span class="line">            AsyncRequestTimeoutException.class</span><br><span class="line">    &#125;)</span><br><span class="line">    @ResponseBody</span><br><span class="line">    public R handleServletException(Exception e) &#123;</span><br><span class="line">        log.error(e.getMessage(), e);</span><br><span class="line">        <span class="built_in">return</span> R.failure(CommonResponseEnum.SERVER_ERROR);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * 获取国际化消息</span><br><span class="line">     * @param e 异常</span><br><span class="line">     * @<span class="built_in">return</span></span><br><span class="line">     */</span><br><span class="line">    public String getMessage(BaseException e) &#123;</span><br><span class="line">        String code = <span class="string">"response."</span> + e.getResponseEnum().toString();</span><br><span class="line">        String message=<span class="string">""</span>;</span><br><span class="line">        <span class="built_in">return</span> message;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * 参数绑定异常</span><br><span class="line">     * @param e 异常</span><br><span class="line">     * @<span class="built_in">return</span> 异常结果</span><br><span class="line">     */</span><br><span class="line">    @ExceptionHandler(value = BindException.class)</span><br><span class="line">    @ResponseBody</span><br><span class="line">    public R handleBindException(BindException e) &#123;</span><br><span class="line">        log.error(<span class="string">"参数绑定校验异常"</span>, e);</span><br><span class="line"></span><br><span class="line">        <span class="built_in">return</span> wrapperBindingResult(e.getBindingResult());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * 参数校验异常，将校验失败的所有异常组合成一条错误信息</span><br><span class="line">     * @param e 异常</span><br><span class="line">     * @<span class="built_in">return</span> 异常结果</span><br><span class="line">     */</span><br><span class="line">    @ExceptionHandler(value = MethodArgumentNotValidException.class)</span><br><span class="line">    @ResponseBody</span><br><span class="line">    public R handleValidException(MethodArgumentNotValidException e) &#123;</span><br><span class="line">        log.error(<span class="string">"参数绑定校验异常"</span>, e);</span><br><span class="line"></span><br><span class="line">        <span class="built_in">return</span> wrapperBindingResult(e.getBindingResult());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * 包装绑定异常结果</span><br><span class="line">     * @param bindingResult 绑定结果</span><br><span class="line">     * @<span class="built_in">return</span> 异常结果</span><br><span class="line">     */</span><br><span class="line">    private R wrapperBindingResult(BindingResult bindingResult) &#123;</span><br><span class="line">        StringBuilder msg = new StringBuilder();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (ObjectError error : bindingResult.getAllErrors()) &#123;</span><br><span class="line">            msg.append(<span class="string">", "</span>);</span><br><span class="line">            <span class="keyword">if</span> (error instanceof FieldError) &#123;</span><br><span class="line">                msg.append(((FieldError) error).getField()).append(<span class="string">": "</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            msg.append(error.getDefaultMessage() == null ? <span class="string">""</span> : error.getDefaultMessage());</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="built_in">return</span> R.failure(null,null);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * 未定义异常</span><br><span class="line">     * @param e 异常</span><br><span class="line">     * @<span class="built_in">return</span> 异常结果</span><br><span class="line">     */</span><br><span class="line">    @ExceptionHandler(value = Exception.class)</span><br><span class="line">    @ResponseBody</span><br><span class="line">    public R handleException(Exception e) &#123;</span><br><span class="line">        log.error(e.getMessage(), e);</span><br><span class="line">        <span class="built_in">return</span> R.failure(null);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>异常处理器说明</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">NoHandlerFoundException：首先根据请求 Url 查找有没有对应的控制器，若没有则会抛该异常，也就是大家非常熟悉的 404 异常。</span><br><span class="line"></span><br><span class="line">HttpRequestMethodNotSupportedException：若匹配到了（匹配结果是一个列表，不同的是 http 方法不同，如：Get、Post 等），则尝试将请求的 http 方法与列表的控制器做匹配，若没有对应 http 方法的控制器，则抛该异常。</span><br><span class="line"></span><br><span class="line">HttpMediaTypeNotSupportedException：然后再对请求头与控制器支持的做比较。</span><br><span class="line"></span><br><span class="line">比如 content-type 请求头，若控制器的参数签名包含注解 @RequestBody，但是请求的 content-type 请求头的值没有包含 application/json，那么会抛该异常（当然，不止这种情况会抛这个异常）。</span><br><span class="line"></span><br><span class="line">MissingPathVariableException：未检测到路径参数。比如 url 为：/licence/&#123;licenceId&#125;，参数签名包含 @PathVariable(<span class="string">"licenceId"</span>)。</span><br><span class="line"></span><br><span class="line">当请求的 url 为 /licence，在没有明确定义 url 为 /licence 的情况下，会被判定为：缺少路径参数。</span><br><span class="line"></span><br><span class="line">MissingServletRequestParameterException：缺少请求参数。比如定义了参数 @RequestParam(<span class="string">"licenceId"</span>) String licenceId，但发起请求时，未携带该参数，则会抛该异常。</span><br><span class="line"></span><br><span class="line">TypeMismatchException：参数类型匹配失败。比如：接收参数为 Long 型，但传入的值确是一个字符串，那么将会出现类型转换失败的情况，这时会抛该异常。</span><br><span class="line"></span><br><span class="line">HttpMessageNotReadableException：与上面的 HttpMediaTypeNotSupportedException 举的例子完全相反。</span><br><span class="line"></span><br><span class="line">即请求头携带了<span class="string">"content-type: application/json;charset=UTF-8"</span>，但接收参数却没有添加注解 @RequestBody，或者请求体携带的 json 串反序列化成 pojo 的过程中失败了，也会抛该异常。</span><br><span class="line"></span><br><span class="line">HttpMessageNotWritableException：返回的 pojo 在序列化成 json 过程失败了，那么抛该异常。</span><br><span class="line"></span><br><span class="line">handleBindException：参数校验异常，后文详细说明。</span><br><span class="line"></span><br><span class="line">handleValidException:参数校验异常，后文详细说明。</span><br><span class="line"></span><br><span class="line">handleBusinessException、handleBaseException:处理自定义的业务异常，只是 handleBaseException 处理的是除了 BusinessException 意外的所有业务异常。就目前来看，这 2 个是可以合并成一个的。</span><br><span class="line"></span><br><span class="line">handleException:处理所有未知的异常，比如操作数据库失败的异常</span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+    
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/java/">java</a></li></ul>
+	</div>
+
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+      
+    
+  </div>
+  
+</article>
+
+
+
+
+
+
+
+  
+    <article id="post-integration-flowable" class="article article-type-post" itemscope itemprop="blogPost">
+  
+    <div class="article-meta">
+      <a href="/2021/03/13/integration-flowable/" class="article-date">
+  	<time datetime="2021-03-13T13:11:23.000Z" itemprop="datePublished">2021-03-13</time>
+</a>
+    </div>
+  
+  <div class="article-inner">
+    
+      <input type="hidden" class="isFancy" />
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2021/03/13/integration-flowable/">
+        spring boot 整合工作流
+        
+      </a>
+    </h1>
+  
+
+      </header>
+      
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="spring-boot-整合-flowable"><a href="#spring-boot-整合-flowable" class="headerlink" title="spring boot 整合 flowable"></a>spring boot 整合 flowable</h2><p>Flowable是一个流行的轻量级的采用Java开发的业务流程引擎。通过Flowable流程引擎，我们可以部署BPMN2.0的流程定义(一般为XML文件)，通过流程定义创建流程实例，查询和访问流程相关的实例与数据，等等</p>
+<h3 id="flowable-依赖配置"><a href="#flowable-依赖配置" class="headerlink" title="flowable 依赖配置"></a>flowable 依赖配置</h3><pre><code class="bash">&lt;dependencies&gt;
+       &lt;dependency&gt;
+           &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+           &lt;artifactId&gt;spring-boot-starter-security&lt;/artifactId&gt;
+       &lt;/dependency&gt;
+       &lt;dependency&gt;
+           &lt;groupId&gt;org.flowable&lt;/groupId&gt;
+           &lt;artifactId&gt;flowable-spring-boot-starter&lt;/artifactId&gt;
+           &lt;version&gt;6.6.0&lt;/version&gt;
+       &lt;/dependency&gt;
+       &lt;!--&gt;mysql 版本不能过高,过高会无法生成flowable 相关表--&gt;
+       &lt;dependency&gt;
+           &lt;groupId&gt;mysql&lt;/groupId&gt;
+           &lt;artifactId&gt;mysql-connector-java&lt;/artifactId&gt;
+           &lt;version&gt;5.1.45&lt;/version&gt;
+       &lt;/dependency&gt;
+   &lt;/dependencies&gt;</code></pre>
+<h3 id="数据库连接配置"><a href="#数据库连接配置" class="headerlink" title="数据库连接配置"></a>数据库连接配置</h3><pre><code class="bash">spring:
+  application:
+    name: zheng-flowable
+  datasource:
+    username: zheng
+    password: 123456
+    url: jdbc:mysql://192.168.11.128:3306/flowable?autoReconnect=<span class="literal">true</span>&amp;useUnicode=<span class="literal">true</span>&amp;characterEncoding=utf8&amp;useSSL=<span class="literal">false</span>&amp;serverTimezone=CTT
+    driver-class-name: com.mysql.jdbc.Driver
+flowable:
+  async-executor-activate: <span class="literal">false</span>
+  database-schema-update: <span class="literal">true</span>
+</code></pre>
+<h3 id="flowable-流程图片乱码解决"><a href="#flowable-流程图片乱码解决" class="headerlink" title="flowable 流程图片乱码解决"></a>flowable 流程图片乱码解决</h3><pre><code class="bash">@Configuration
+public class FlowableConfig implements EngineConfigurationConfigurer&lt;SpringProcessEngineConfiguration&gt; {
+
+
+    @Override
+    public void configure(SpringProcessEngineConfiguration engineConfiguration) {
+        engineConfiguration.setActivityFontName(<span class="string">"宋体"</span>);
+        engineConfiguration.setLabelFontName(<span class="string">"宋体"</span>);
+        engineConfiguration.setAnnotationFontName(<span class="string">"宋体"</span>);
+    }
+}</code></pre>
+
+      
+    </div>
+    
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/java/">java</a></li></ul>
+	</div>
+
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+      
+    
+  </div>
+  
+</article>
+
+
+
+
+
+
+
   
     <article id="post-auto-deployment-0" class="article article-type-post" itemscope itemprop="blogPost">
   
@@ -293,7 +548,7 @@
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ /home/zheng/elasticsearch/plugins</span><br></pre></td></tr></table></figure>
 
 <p>启动 elasticsearch,完成文件映射</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ docker run -d -p 9200:9200 -p 5601:5601  --privileged=<span class="literal">true</span> -v /home/zheng/elasticsearch/config:/home/elasticsearch/elasticsearch/config -v /home/zheng/elasticsearch/plugins:/home/elasticsearch/elasticsearch/plugins  nshou/elasticsearch-kibana</span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ docker run -d -p 9200:9200 -p 9300:9300  --privileged=<span class="literal">true</span>  -v /home/zheng/elasticsearch/config/elasticsearh.yml:/usr/share/elasticsearch/config/elasticsearh.yml -v /home/zheng/elasticsearch/plugins:/usr/share/elasticsearch/elasticsearch/plugins  -v /home/zheng/elasticsearch/data:/usr/share/elasticsearch/elasticsearch/data  -e <span class="string">"discovery.type=single-node"</span>  -e ES_JAVA_OPTS=<span class="string">"-Xms108m -Xmx512m"</span>	 elasticsearch:7.4.2</span><br></pre></td></tr></table></figure>
 
 <p> 配置ik分词相关信息</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ /home/zheng/elasticsearch/plugins/ik/config</span><br></pre></td></tr></table></figure>
@@ -756,254 +1011,6 @@ CMD [<span class="string">"/usr/local/mycat/bin/mycat"</span>, <span class="stri
 
 
   
-    <article id="post-docker-view" class="article article-type-post" itemscope itemprop="blogPost">
-  
-    <div class="article-meta">
-      <a href="/2019/07/28/docker-view/" class="article-date">
-  	<time datetime="2019-07-28T10:53:53.000Z" itemprop="datePublished">2019-07-28</time>
-</a>
-    </div>
-  
-  <div class="article-inner">
-    
-      <input type="hidden" class="isFancy" />
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2019/07/28/docker-view/">
-        Docker 可视化管理
-        
-      </a>
-    </h1>
-  
-
-      </header>
-      
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>shipyard是docker的web可视化界面管理工具，是建立在docker集群管理工具Citadel之上，可以管理镜像、容器、主机等资源的web图形化工具，包括core和extension两个版本，core即shipyard主要是把多个 Docker host上的 containers 统一管理（支持跨越多个host），extension即shipyard-extensions添加了应用路由和负载均衡、集中化日志、部署等。Shipyard是在Docker Swarm实现对容器、镜像、docker集群、仓库、节点进行管理的web系统。</p>
-<h2 id="Shipyard-自动安装说明"><a href="#Shipyard-自动安装说明" class="headerlink" title="Shipyard 自动安装说明"></a>Shipyard 自动安装说明</h2><p>自动安装主节点(管理端)</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ curl -s https://raw.githubusercontent.com/shipyard/shipyard-project.com/master/site/themes/shipyard/static/deploy | bash -s</span><br></pre></td></tr></table></figure>
-
-<p>自动安装添加节点</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ curl -sSL https://raw.githubusercontent.com/shipyard/shipyard-project.com/master/site/themes/shipyard/static/deploy | ACTION=node DISCOVERY=etcd://主节点IP:4001 bash -s</span><br></pre></td></tr></table></figure>
-
-<p>使用 <a href="/download/shipyard-deploy.txt">shipyard-deploy</a> 文件进行安装。首先将文件内容复制到本地，然后将文件后缀.txt 去除，在将文件上传到服务器上。</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"> 文件授权： </span><br><span class="line">$ chmod 755 shipyard-deploy</span><br><span class="line"></span><br><span class="line"> 执行脚本(添加主节点)：</span><br><span class="line">$ sh shipyard-deploy </span><br><span class="line"></span><br><span class="line"> 删除(主节点)：</span><br><span class="line">$ cat shipyard-deploy |ACTION=remove bash</span><br><span class="line"></span><br><span class="line"> 添加节点</span><br><span class="line">$ cat shipyard-deploy| ACTION=node DISCOVERY=etcd://主节点IP:4001 bash</span><br><span class="line"></span><br><span class="line"> 删除节点</span><br><span class="line">$ cat shipyard-deploy |ACTION=remove bash -s</span><br></pre></td></tr></table></figure>
-
-<p>下载 shipyard 相关镜像</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">   数据存储</span><br><span class="line">$ docker pull rethinkdb</span><br><span class="line"></span><br><span class="line">   服务发现</span><br><span class="line">$ docker pull microbox/etcd    </span><br><span class="line"></span><br><span class="line">   docker代理服务</span><br><span class="line">$ docker pull shipyard/docker-proxy</span><br><span class="line"></span><br><span class="line">   Swarm管理节点 </span><br><span class="line">$ docker pull swarm</span><br><span class="line"></span><br><span class="line">   Shipyard管理工具 </span><br><span class="line">$ docker pull shipyard/shipyard    </span><br><span class="line"></span><br><span class="line"> 默认用户名/密码 admin/shipyard</span><br></pre></td></tr></table></figure>
-      
-    </div>
-    
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/docker/">docker</a></li></ul>
-	</div>
-
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-      
-    
-  </div>
-  
-</article>
-
-
-
-
-
-
-
-  
-    <article id="post-docker-harbor" class="article article-type-post" itemscope itemprop="blogPost">
-  
-    <div class="article-meta">
-      <a href="/2019/07/27/docker-harbor/" class="article-date">
-  	<time datetime="2019-07-27T08:58:49.000Z" itemprop="datePublished">2019-07-27</time>
-</a>
-    </div>
-  
-  <div class="article-inner">
-    
-      <input type="hidden" class="isFancy" />
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2019/07/27/docker-harbor/">
-        Docker 私有仓库
-        
-      </a>
-    </h1>
-  
-
-      </header>
-      
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>　Harbor是构建企业级私有docker镜像的仓库的开源解决方案，它是Docker Registry的更高级封装，它除了提供友好的Web UI界面，角色和用户权限管理，用户操作审计等功能外，它还整合了K8s的插件(Add-ons)仓库，即Helm通过chart方式下载，管理，安装K8s插件，而chartmuseum可以提供存储chart数据的仓库【注:helm就相当于k8s的yum】。另外它还整合了两个开源的安全组件，一个是Notary，另一个是Clair，Notary类似于私有CA中心，而Clair则是容器安全扫描工具，它通过各大厂商提供的CVE漏洞库来获取最新漏洞信息，并扫描用户上传的容器是否存在已知的漏洞信息，这两个安全功能对于企业级私有仓库来说是非常具有意义的</p>
-<h2 id="服务器配置信息"><a href="#服务器配置信息" class="headerlink" title="服务器配置信息"></a>服务器配置信息</h2><p>  配置静态ip, 打开文件</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vi /etc/network/interfaces</span><br></pre></td></tr></table></figure>
-
-<p>  配置信息说明</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">auto lo</span><br><span class="line">iface lo inet loopback</span><br><span class="line">auto ens33（ens33为以太网卡，根据实际名称填写）</span><br><span class="line">iface ens33 inet static</span><br><span class="line">address     192.168.1.8（IP地址，要和物理机在同一网段，且不要和局域网内其他设备IP冲突，查看方法见下）</span><br><span class="line">gateway   192.168.1.1（默认网关，和物理机一样）</span><br><span class="line">netmask   255.255.255.0（子网掩码，和物理机一样）</span><br></pre></td></tr></table></figure>
-
-<p>  添加本地解析</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">vim /etc/hosts (解析ip)</span><br><span class="line">127.0.0.1  [域名]</span><br></pre></td></tr></table></figure>
-
-<p>  重启网络</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo /etc/init.d/networking restart</span><br></pre></td></tr></table></figure>
-
-<h2 id="私有仓库安装说明-注-安装docker并运行"><a href="#私有仓库安装说明-注-安装docker并运行" class="headerlink" title="私有仓库安装说明(  注:安装docker并运行)"></a>私有仓库安装说明( <a color="red"> 注:安装docker并运行</a>)</h2><p>安装docker-compose</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo curl -L https://github.com/docker/compose/releases/download/1.18.0/docker-compose-`uname -s`-`uname -m` -o /usr/<span class="built_in">local</span>/bin/docker-compose</span><br></pre></td></tr></table></figure>
-
-<p>给docker-compose文件添加执行权限</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo chmod +x /usr/<span class="built_in">local</span>/bin/docker-compose</span><br></pre></td></tr></table></figure>
-
-<p>查看docker-compose 版本</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker-compose --version</span><br></pre></td></tr></table></figure>
-
-<h2 id="Harbor-安装说明-注-Harbor下载"><a href="#Harbor-安装说明-注-Harbor下载" class="headerlink" title="Harbor 安装说明 (注: Harbor下载)"></a>Harbor 安装说明 (<a color="red">注:<a href="https://github.com/goharbor/harbor/releases" target="_blank" rel="noopener"> Harbor</a>下载</a>)</h2><p>Harbor offline installer 里就包含的  需要使用的镜像文件<br> 下载成功，并解压<br> <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tar -zxvf  harbor-offline-installer-***.tgz</span><br></pre></td></tr></table></figure></p>
-<p> 进入harbor文件夹,编辑配置harbor.cfg文件<br> <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">将 hostname 改成你本机的网址或IP</span><br><span class="line">$ hostname = A.B.C.D</span><br></pre></td></tr></table></figure></p>
-<p> 运行Harbor<br> <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ ./prepare</span><br><span class="line">$ ./install.sh</span><br></pre></td></tr></table></figure></p>
-<p>重启harbor的容器<br> <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ docker-compose up -d</span><br></pre></td></tr></table></figure></p>
-<h2 id="配置-daemon-json-文件"><a href="#配置-daemon-json-文件" class="headerlink" title="配置 daemon.json 文件"></a>配置 daemon.json 文件</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">$  vim  /etc/docker/daemon.json</span><br><span class="line">  &#123; </span><br><span class="line">   <span class="string">"insecure-registries"</span>: [<span class="string">"xxxxx.com"</span>]</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
-
-<p> 为镜像打tag<br> <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  docker tag nginx:latest xxxxx.com/zpl/nginx:1.0.0</span><br></pre></td></tr></table></figure></p>
-<p>将镜像推送到harbor</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  docker push xxxxx.com/zpl/nginx:1.0.0</span><br></pre></td></tr></table></figure>
-
-<p> 导出镜像<br> <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker save -o /home/zheng/xxl-job-admin.tar  xxl-job-admin:2.1.0</span><br></pre></td></tr></table></figure></p>
-
-      
-    </div>
-    
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/docker/">docker</a></li></ul>
-	</div>
-
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-      
-    
-  </div>
-  
-</article>
-
-
-
-
-
-
-
-  
-    <article id="post-docker-install" class="article article-type-post" itemscope itemprop="blogPost">
-  
-    <div class="article-meta">
-      <a href="/2019/07/25/docker-install/" class="article-date">
-  	<time datetime="2019-07-25T09:39:57.000Z" itemprop="datePublished">2019-07-25</time>
-</a>
-    </div>
-  
-  <div class="article-inner">
-    
-      <input type="hidden" class="isFancy" />
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2019/07/25/docker-install/">
-        Docker 安装配置
-        
-      </a>
-    </h1>
-  
-
-      </header>
-      
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>Docker 是一个开源的应用容器引擎，基于 Go 语言 并遵从Apache2.0协议开源。Docker 可以让开发者打包他们的应用以及依赖包到一个轻量级、可移植的容器中，然后发布到任何流行的 Linux 机器上，也可以实现虚拟化。容器是完全使用沙箱机制，相互之间不会有任何接口（类似 iPhone 的 app）,更重要的是容器性能开销极低。<br>Docker 与虚拟机最大区别在于：Docker 隔离应用程序，直接调用宿主主机的操作系统上的硬件资源。而虚拟机在最大程度上隔离系统。</p>
-<h2 id="Docker-安装说明"><a href="#Docker-安装说明" class="headerlink" title="Docker 安装说明"></a>Docker 安装说明</h2><p>本文 Docker 安装基于ubuntu 操作系统，使用的是阿里的镜像</p>
-<h2 id="Docker-安装步骤"><a href="#Docker-安装步骤" class="headerlink" title="Docker 安装步骤"></a>Docker 安装步骤</h2><p> 安装必要的系统工具</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$  sudo apt-get update</span><br><span class="line">$  sudo apt-get -y install apt-transport-https ca-certificates curl software-properties-common</span><br></pre></td></tr></table></figure>
-
-<p> 安装GPG证书</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  curl -fsSL http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | sudo apt-key add -</span><br></pre></td></tr></table></figure>
-
-<p> 写入软件源信息</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  sudo add-apt-repository <span class="string">"deb [arch=amd64] http://mirrors.aliyun.com/docker-ce/linux/ubuntu <span class="variable">$(lsb_release -cs)</span> stable"</span></span><br></pre></td></tr></table></figure>
-
-<p> 更新并安装Docer-CE</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$  sudo apt-get -y update</span><br><span class="line">$  sudo apt-get -y install docker-ce</span><br></pre></td></tr></table></figure>
-
-<p> 安装校验</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  docker version</span><br></pre></td></tr></table></figure>
-
-<h2 id="Docker-镜像加速配置"><a href="#Docker-镜像加速配置" class="headerlink" title="Docker 镜像加速配置"></a>Docker 镜像加速配置</h2><p> 配置 daemon.json 文件 ,可在 阿里 容器镜像服务生成自己加速器地址</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">$  vim  /etc/docker/daemon.json</span><br><span class="line">  &#123; </span><br><span class="line">   <span class="string">"registry-mirrors"</span>: [<span class="string">"https://xxxxxxxx.mirror.aliyuncs.com"</span>]</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
-
-<p> 重启 daemon</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  systemctl daemon-reload</span><br></pre></td></tr></table></figure>
-
-<p> 开启 docker 远程服务</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$  vim /lib/systemd/system/docker.service</span><br><span class="line">  找到    <span class="comment">#ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock</span></span><br><span class="line">  修改为：ExecStart=/usr/bin/dockerd -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock</span><br></pre></td></tr></table></figure>
-
-<p> 重启 docker 服务</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  service docker restart</span><br></pre></td></tr></table></figure>
-
-<p> 查看远程服务</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$  ps aux|grep dockerd</span><br></pre></td></tr></table></figure>
-      
-    </div>
-    
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/docker/">docker</a></li></ul>
-	</div>
-
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-      
-    
-  </div>
-  
-</article>
-
-
-
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -1014,7 +1021,7 @@ CMD [<span class="string">"/usr/local/mycat/bin/mycat"</span>, <span class="stri
   <div class="outer">
     <div id="footer-info">
       <div class="footer-left">
-        &copy; 2020 pingli.zheng
+        &copy; 2024 pingli.zheng
       </div>
         <div class="footer-right">
           
